@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#fff3cd">
+<title>Availability TEST</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17202b;background:#f3f6f8}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6f8;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:10;background:#fff3cd;border-bottom:2px solid #f0ad00;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+h1{font-size:22px;margin:0}.tag{font-size:12px;font-weight:900;color:#8a6000;margin-top:3px}
+main{max-width:760px;margin:auto;padding:8px}.card{background:#fff;border:1px solid #d7dde3;border-radius:14px;overflow:hidden}
+.setup{padding:10px}.row{display:grid;grid-template-columns:74px 1fr;gap:8px;align-items:center;margin-bottom:9px}
+label{font-weight:800}.store{height:42px;width:125px;border:1.5px solid #cbd4dd;border-radius:10px;padding:0 10px;font-size:18px;font-weight:700}
+.scores{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-width:270px}.score{height:42px;border:1.5px solid #cbd4dd;border-radius:10px;background:#fff;font-weight:900;font-size:17px}.score.on{background:#1976d2;color:#fff;border-color:#1976d2}
+.gaprow{display:grid;grid-template-columns:minmax(80px,1fr) 44px 58px 44px 72px;gap:6px;align-items:center;padding:7px 10px;border-top:1px solid #e5e9ed;background:#fff1f1}
+.gaprow.done{background:#edf8ef}.area{font-weight:850;font-size:14px}.counter{height:44px;border:0;border-radius:10px;font-size:27px;font-weight:800}.minus{background:#edf3f8;color:#2378d6}.plus{background:#e5f5e8;color:#16823a}
+.num{width:58px;height:44px;border:2px solid #1976d2;border-radius:10px;text-align:center;font-size:18px;font-weight:850}
+.donebtn{height:44px;border:1px solid #d89797;border-radius:10px;background:#fff;color:#a9221a;font-size:10px;font-weight:900}.gaprow.done .donebtn{background:#17823b;border-color:#17823b;color:#fff}
+.total{padding:10px 12px;border-top:2px solid #cfd6dc;font-weight:900;display:flex;justify-content:space-between}.actions{padding:10px;display:grid;gap:8px}.btn{min-height:48px;border:0;border-radius:11px;font-weight:900;font-size:15px}.publish{background:#1976d2;color:#fff}.reset{background:#ffe8e8;color:#a71919}.preview{white-space:pre-wrap;background:#f7f9fb;border:1px solid #dce2e8;border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;display:none}
+.note{text-align:center;color:#6a737d;font-size:12px;padding:10px}
+@media(max-width:390px){.gaprow{grid-template-columns:minmax(68px,1fr) 40px 52px 40px 64px;gap:4px;padding:6px}.num{width:52px}.donebtn{font-size:9px}.counter{height:42px}}
+</style>
+</head>
+<body>
+<header><h1>Availability — TEST</h1><div class="tag">SAFE TEST VERSION • DOES NOT USE LIVE APP DATA</div></header>
+<main>
+<section class="card">
+<div class="setup">
+  <div class="row"><label>Store</label><input id="store" class="store" inputmode="numeric" maxlength="4" placeholder="1022"></div>
+  <div class="row"><label>Score</label><div id="scores" class="scores"></div></div>
+</div>
+<div id="gaps"></div>
+<div class="total"><span>TOTAL GAPS</span><span id="total">0</span></div>
+<div class="actions">
+  <button id="publish" class="btn publish">Test Publish</button>
+  <div id="preview" class="preview"></div>
+  <button id="reset" class="btn reset">Reset Test</button>
+</div>
+<div class="note">Saved only under a separate TEST key on this device.</div>
+</section>
+</main>
+<script>
+const KEY='availability_test_playground_v1';
+const AREAS=['Ambient','Fv','Chiller','Bread','Freezer','Bakery','Meat','Conv','Milk','Additional Counts'];
+let state=JSON.parse(localStorage.getItem(KEY)||'null')||{store:'',score:'',gaps:{},done:{}};
+AREAS.forEach(a=>{if(state.gaps[a]==null)state.gaps[a]=0;if(state.done[a]==null)state.done[a]=false});
+const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
+const total=()=>AREAS.reduce((n,a)=>n+(Number(state.gaps[a])||0),0);
+
+function renderScores(){
+ const box=document.getElementById('scores'); box.innerHTML='';
+ [1,2,3,4].forEach(n=>{
+   const b=document.createElement('button'); b.className='score'+(String(n)===String(state.score)?' on':''); b.textContent=n;
+   b.onclick=()=>{state.score=String(n);save();renderScores()};
+   box.appendChild(b);
+ });
+}
+function render(){
+ document.getElementById('store').value=state.store||'';
+ renderScores();
+ const box=document.getElementById('gaps'); box.innerHTML='';
+ AREAS.forEach(a=>{
+   const row=document.createElement('div'); row.className='gaprow'+(state.done[a]?' done':'');
+   row.innerHTML=`<div class="area">${a}</div>
+   <button class="counter minus">−</button>
+   <input class="num" inputmode="numeric" value="${state.gaps[a]||''}">
+   <button class="counter plus">+</button>
+   <button class="donebtn">${state.done[a]?'✓ Done':'Not done'}</button>`;
+   const [minus,input,plus,done]=[row.children[1],row.children[2],row.children[3],row.children[4]];
+   minus.onclick=()=>{state.gaps[a]=Math.max(0,(Number(state.gaps[a])||0)-1);save();render()};
+   plus.onclick=()=>{state.gaps[a]=(Number(state.gaps[a])||0)+1;save();render()};
+   input.oninput=e=>{state.gaps[a]=Number(String(e.target.value).replace(/\D/g,''))||0;save();document.getElementById('total').textContent=total()};
+   done.onclick=()=>{state.done[a]=!state.done[a];save();render()};
+   box.appendChild(row);
+ });
+ document.getElementById('total').textContent=total();
+}
+document.getElementById('store').oninput=e=>{state.store=e.target.value.replace(/\D/g,'').slice(0,4);e.target.value=state.store;save()};
+document.getElementById('publish').onclick=()=>{
+ const p=document.getElementById('preview');
+ const lines=[state.store||'TEST STORE','Score: '+(state.score||'-'),'Gaps: '+total(),''];
+ AREAS.forEach(a=>lines.push(a+' - '+(state.gaps[a]||0)));
+ p.textContent=lines.join('\n'); p.style.display='block'; p.scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+document.getElementById('reset').onclick=()=>{
+ localStorage.removeItem(KEY); state={store:'',score:'',gaps:{},done:{}};
+ AREAS.forEach(a=>{state.gaps[a]=0;state.done[a]=false}); document.getElementById('preview').style.display='none'; render();
+};
+render();
+</script>
+</body>
+</html>
