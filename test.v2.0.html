@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Availability · Flying total test 2.0</title>
+<style>
+html,body{margin:0;background:#f3f6f8;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17202b}
+.loading{max-width:430px;margin:36px auto;padding:20px;text-align:center}
+.loading strong{display:block;font-size:23px;margin-bottom:10px}
+.loading small{color:#697581}
+.loading.error{background:#fff;border:1px solid #e2d0d0;border-radius:12px;text-align:left}
+</style>
+</head>
+<body>
+<div class="loading" id="loadStatus"><strong>Availability</strong><small>Opening adaptive counting test…</small></div>
+<script>
+(async function(){
+  try{
+    // Use the current live app as the base, so its scores, saved figures,
+    // image guide, share sheet and all existing shortcuts remain unchanged.
+    // This test file must be uploaded alongside index.html on GitHub Pages.
+    const response=await fetch('./index.html',{cache:'no-store'});
+    if(!response.ok)throw new Error('Could not read the live Availability app ('+response.status+').');
+    let source=await response.text();
+    const replaceOnce=(before,after,label)=>{
+      if(source.split(before).length!==2)throw new Error('The live app changed: '+label+' could not be matched.');
+      source=source.replace(before,after);
+    };
+    if(!source.includes('function makeGapRow(area)') || !source.includes('function renderGaps()'))
+      throw new Error('This test could not find the current gap counter.');
+
+    const adaptiveCss=`
+/* Adaptive counting layout: large pending rows, small completed rows. */
+header h1::after{
+  content:"TEST 2.0";
+  display:inline-block;
+  vertical-align:middle;
+  margin-left:10px;
+  padding:5px 8px;
+  font-size:10px;
+  letter-spacing:.6px;
+  border-radius:6px;
+  background:#ffe3e3;
+  color:#b42323;
+}
+#gaps{display:flex;flex-direction:column}
+#gaps .gaprow:not(.compact){
+  grid-template-columns:minmax(74px,1fr) 52px 66px 52px 78px;
+  min-height:70px;gap:5px;padding:7px 9px;
+}
+#gaps .gaprow:not(.compact) .area{font-size:16px}
+#gaps .gaprow:not(.compact) .counter{width:52px;height:52px;font-size:32px;border-radius:13px}
+#gaps .gaprow:not(.compact) .editwrap{width:66px;height:52px}
+#gaps .gaprow:not(.compact) .gapinput,
+#gaps .gaprow:not(.compact) .additionalinput{height:52px;font-size:23px;border-radius:12px}
+#gaps .gaprow:not(.compact) .editcue{font-size:11px}
+#gaps .gaprow:not(.compact) .donebtn{width:78px;height:52px;border-radius:13px;font-size:11px}
+#gaps .gaprow.compact{
+  grid-template-columns:minmax(0,1fr) 48px 68px;
+  gap:8px;padding:4px 10px;min-height:51px;
+  background:#edf8ef;border-top:1px solid #e0e9e2;
+}
+#gaps .gaprow.compact.bulkdone{background:#f6fbf7}
+#gaps .gaprow.compact.additionalrow{border-top:1px solid #e0e9e2}
+#gaps .compact .area{font-size:14px;line-height:1.15}
+#gaps .compact-name{display:flex;align-items:center;gap:7px}
+#gaps .compact-tick{font-weight:900;color:#16823a}
+#gaps .compact-count{font-size:16px;font-weight:900;text-align:center;color:#176f34;font-variant-numeric:tabular-nums}
+#gaps .compact-edit{
+  width:68px;height:42px;border:1px solid #b9d9c0;border-radius:10px;
+  background:#fff;color:#167b38;font-size:12px;font-weight:900;
+}
+#gaps .counted-heading{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px 5px;font-size:11px;font-weight:850;letter-spacing:.25px;
+  color:#607568;background:#f2f7f3;border-top:2px solid #d9e7dc;
+}
+@media(max-width:390px){
+  #gaps .gaprow:not(.compact){
+    grid-template-columns:minmax(68px,1fr) 48px 60px 48px 70px;
+    padding:7px 7px;gap:4px;min-height:68px;
+  }
+  #gaps .gaprow:not(.compact) .area{font-size:15px}
+  #gaps .gaprow:not(.compact) .counter{width:48px;height:50px;font-size:31px}
+  #gaps .gaprow:not(.compact) .editwrap{width:60px;height:50px}
+  #gaps .gaprow:not(.compact) .gapinput,
+  #gaps .gaprow:not(.compact) .additionalinput{height:50px;font-size:21px}
+  #gaps .gaprow:not(.compact) .donebtn{width:70px;height:50px;font-size:10px}
+}
+@media(max-width:350px){
+  #gaps .gaprow:not(.compact){
+    grid-template-columns:minmax(62px,1fr) 42px 52px 42px 64px;
+    gap:3px;padding:6px 6px;min-height:64px;
+  }
+  #gaps .gaprow:not(.compact) .area{font-size:14px}
+  #gaps .gaprow:not(.compact) .counter{width:42px;height:46px;font-size:29px}
+  #gaps .gaprow:not(.compact) .editwrap{width:52px;height:46px}
+  #gaps .gaprow:not(.compact) .gapinput,
+  #gaps .gaprow:not(.compact) .additionalinput{height:46px;font-size:20px}
+  #gaps .gaprow:not(.compact) .donebtn{width:64px;height:46px;font-size:9px}
+  #gaps .gaprow.compact{grid-template-columns:minmax(0,1fr) 40px 60px;gap:5px;padding-left:7px;padding-right:7px}
+  #gaps .compact-edit{width:60px}
+}
+
+/* v1.9: Fit the counter rows to the visible phone height without
+   reducing tap targets below comfortable sizes. */
+#gaps .gaprow:not(.compact){
+  min-height:var(--adaptive-row-height,70px);
+  height:var(--adaptive-row-height,70px);
+  padding-top:4px;padding-bottom:4px;
+}
+#gaps .gaprow:not(.compact) .counter,
+#gaps .gaprow:not(.compact) .donebtn,
+#gaps .gaprow:not(.compact) .editwrap,
+#gaps .gaprow:not(.compact) .gapinput,
+#gaps .gaprow:not(.compact) .additionalinput{
+  height:var(--adaptive-control-height,52px);
+}
+/* One total moves between the sticky header and the original TOTAL slot.
+   It follows the user's scrolling rather than popping in or out. */
+header h1::after{display:none}
+header::after{
+  content:"TEST 2.0";
+  position:absolute;
+  right:9px;
+  top:50%;
+  transform:translateY(-50%);
+  padding:4px 6px;
+  font-size:9px;
+  letter-spacing:.4px;
+  font-weight:900;
+  border-radius:6px;
+  background:#ffe3e3;
+  color:#b42323;
+  pointer-events:none;
+}
+.floating-gap-total{
+  --dock-progress:0;
+  position:fixed;
+  z-index:48;
+  left:156px;top:12px;
+  width:91px;height:39px;
+  display:flex;align-items:center;justify-content:center;
+  gap:5px;
+  padding:0 7px;
+  border:0;
+  background:transparent;
+  color:#586b80;
+  font-size:10px;
+  line-height:1;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.3px;
+  pointer-events:none;
+  will-change:left,top;
+  isolation:isolate;
+}
+.floating-gap-total::before{
+  content:"";
+  position:absolute;
+  z-index:-1;inset:0;
+  border-radius:12px;
+  border:1px solid #b9cddd;
+  background:#fff;
+  box-shadow:0 3px 12px rgba(20,47,70,.13);
+  opacity:calc(1 - var(--dock-progress));
+}
+.floating-gap-total .float-label{
+  flex:0 0 auto;
+  width:34px;
+  overflow:hidden;
+  opacity:calc(1 - var(--dock-progress));
+  max-width:34px;
+  white-space:nowrap;
+}
+.floating-gap-total strong{
+  color:#17202b;
+  font-size:22px;
+  font-weight:950;
+  line-height:1;
+  letter-spacing:0;
+  white-space:nowrap;
+}
+.floating-gap-total.is-merged strong{font-size:21px}
+.floating-gap-total .float-label{display:inline-block}
+.total.total-docking #storeTotal{visibility:hidden}
+.floating-gap-total.value-bump strong{animation:total-tick .20s ease-out}
+@keyframes total-tick{50%{transform:scale(1.22);color:#1976d2}}
+@media(prefers-reduced-motion:reduce){
+  .floating-gap-total.value-bump strong{animation:none}
+}
+@media(max-width:350px){header::after{content:"2.0";font-size:9px}}
+`;
+    replaceOnce('</style>',adaptiveCss+'\n</style>','styles');
+
+    replaceOnce(
+      '  row.dataset.area=area;\n  row.innerHTML=`',
+      `  row.dataset.area=area;
+  // Finished rows become compact and are placed after unfinished rows.
+  if(state.done[area]){
+    row.className='gaprow compact'+(bulkDone?' bulkdone':'');
+    row.innerHTML=\`
+      <div class="area compact-name"><span class="compact-tick" aria-hidden="true">✓</span>\${LABELS[area]}</div>
+      <span class="compact-count" aria-label="\${LABELS[area]} gaps">\${Number(state.gaps[area])||0}</span>
+      <button type="button" class="compact-edit" aria-label="Edit \${LABELS[area]} count">Edit</button>\`;
+    row.querySelector('.compact-edit').onclick=()=>{
+      closeCustomKeypad(false);
+      lockedTapCounts[area]=0;
+      remember();
+      state.done[area]=false;
+      save();
+      renderGaps();
+      requestAnimationFrame(()=>{
+        const reopened=[...document.querySelectorAll('#gaps .gaprow[data-area]')].find(el=>el.dataset.area===area);
+        if(reopened)reopened.scrollIntoView({behavior:'smooth',block:'center'});
+      });
+    };
+    return row;
+  }
+  row.innerHTML=\``,
+      'area rendering'
+    );
+
+    replaceOnce(
+      "  AREAS.forEach(a=>box.appendChild(makeGapRow(a)));\n\n  const extra=document.createElement('div');",
+      `  const pendingAreas=AREAS.filter(a=>!state.done[a]);
+  const finishedAreas=AREAS.filter(a=>state.done[a]);
+  pendingAreas.forEach(a=>box.appendChild(makeGapRow(a)));
+
+  const extra=document.createElement('div');`,
+      'section sorting'
+    );
+
+    replaceOnce(
+      "  const extraBulkDone=!!(state.bulkCompleteOriginalDone&&state.additionalDone&&!state.bulkCompleteOriginalDone.additionalDone);\n  extra.className='gaprow additionalrow'",
+      `  const extraBulkDone=!!(state.bulkCompleteOriginalDone&&state.additionalDone&&!state.bulkCompleteOriginalDone.additionalDone);
+  if(state.additionalDone){
+    extra.className='gaprow compact additionalrow'+(extraBulkDone?' bulkdone':'');
+    extra.innerHTML=\`
+      <div class="area compact-name"><span class="compact-tick" aria-hidden="true">✓</span>Additional Counts</div>
+      <span class="compact-count" aria-label="Additional count">\${Number(state.additional)||0}</span>
+      <button type="button" class="compact-edit" aria-label="Edit additional counts">Edit</button>\`;
+    extra.querySelector('.compact-edit').onclick=()=>{
+      closeCustomKeypad(false);
+      remember();
+      state.additionalDone=false;
+      save();
+      renderGaps();
+      requestAnimationFrame(()=>{
+        const reopened=document.querySelector('#gaps .additionalrow');
+        if(reopened)reopened.scrollIntoView({behavior:'smooth',block:'center'});
+      });
+    };
+  }else{
+  extra.className='gaprow additionalrow'`,
+      'additional count rendering'
+    );
+
+    replaceOnce(
+      "  extraDone.onclick=()=>{closeCustomKeypad(false);remember();state.additionalDone=!state.additionalDone;save();renderGaps()};\n  box.appendChild(extra);\n\n  document.getElementById('storeTotal')",
+      `  extraDone.onclick=()=>{closeCustomKeypad(false);remember();state.additionalDone=!state.additionalDone;save();renderGaps()};
+  }
+  if(!state.additionalDone)box.appendChild(extra);
+  const countedNumber=finishedAreas.length+(state.additionalDone?1:0);
+  if(countedNumber){
+    const heading=document.createElement('div');
+    heading.className='counted-heading';
+    heading.innerHTML='<span>✓ Counted sections</span><span>'+countedNumber+'/10</span>';
+    box.appendChild(heading);
+    finishedAreas.forEach(a=>box.appendChild(makeGapRow(a)));
+    if(state.additionalDone)box.appendChild(extra);
+  }
+
+  document.getElementById('storeTotal')`,
+      'completed grouping'
+    );
+
+    replaceOnce(
+      '</main>',
+      '<div class="floating-gap-total" id="floatingGapTotal" role="status" aria-label="Total gaps"><span class="float-label">GAPS</span><strong id="floatingGapNumber">0</strong></div></main>',
+      'floating total widget'
+    );
+
+    source=source.replace("const APP_VERSION='1.6';","const APP_VERSION='2.0-test';");
+    replaceOnce(
+      'syncScoreUI();\nsyncReasonUI();\nrenderGaps();\nupdateUndoRedo();',
+      `syncScoreUI();
+syncReasonUI();
+renderGaps();
+(function setupAdaptiveCounting(){
+  const bodyGaps=document.getElementById('gaps');
+  const bottomTotal=document.querySelector('.total');
+  const originalTotal=document.getElementById('storeTotal');
+  const overlay=document.getElementById('floatingGapTotal');
+  const overlayValue=document.getElementById('floatingGapNumber');
+  const topHeader=document.querySelector('header');
+  if(!bodyGaps||!bottomTotal||!originalTotal||!overlay||!overlayValue)return;
+
+  // Read the same live total used by Publish. Additional Counts are deliberately
+  // excluded, exactly as in the original app's total() calculation.
+  let lastValue=null;
+  function updateTally(){
+    const value=originalTotal.textContent.trim()||'0';
+    overlayValue.textContent=value;
+    if(lastValue!==null && lastValue!==value &&
+       !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      overlay.classList.remove('value-bump');
+      void overlay.offsetWidth;
+      overlay.classList.add('value-bump');
+    }
+    lastValue=value;
+  }
+  new MutationObserver(updateTally).observe(originalTotal,{childList:true,characterData:true,subtree:true});
+  updateTally();
+
+  function viewportHeight(){return window.visualViewport?window.visualViewport.height:window.innerHeight;}
+  function clamp(value){return Math.min(1,Math.max(0,value));}
+  function moveTotal(){
+    if(!topHeader)return;
+    const title=topHeader.querySelector('h1');
+    if(!title)return;
+    const titleRect=title.getBoundingClientRect();
+    const titleText=title.firstChild;
+    let titleTextRight=titleRect.left+144;
+    if(titleText && titleText.nodeType===Node.TEXT_NODE){
+      const range=document.createRange();
+      range.selectNodeContents(titleText);
+      titleTextRight=range.getBoundingClientRect().right;
+    }
+    const headerRect=topHeader.getBoundingClientRect();
+    const numRect=originalTotal.getBoundingClientRect();
+    const overlayWidth=overlay.offsetWidth;
+    const overlayHeight=overlay.offsetHeight;
+    const vh=viewportHeight();
+    const vw=window.innerWidth;
+
+    // Keep the resting counter beside Availability, never over a + or - button.
+    const startLeft=Math.max(6,Math.min(titleTextRight+11,vw-overlayWidth-51));
+    const startTop=headerRect.top+(headerRect.height-overlayHeight)/2;
+    // Aim the number at the original red-underlined TOTAL number, not its row.
+    const finishLeft=numRect.left+(numRect.width-overlayWidth)/2;
+    const finishTop=numRect.top+(numRect.height-overlayHeight)/2;
+
+    // The total glides down as its original position approaches from below.
+    // It becomes the only visible number once travelling; after reaching the
+    // bottom it tracks the target precisely as the user continues scrolling.
+    const enter=vh-15;
+    const land=Math.max(headerRect.bottom+84,vh*.59);
+    const comingIn=clamp((enter-numRect.top)/Math.max(80,enter-land));
+    // Smoothly bring the tally back if the bottom total scrolls off the top.
+    const goingOut=clamp((numRect.bottom-(headerRect.bottom+5))/140);
+    const ratio=comingIn*goingOut;
+    const eased=ratio*ratio*(3-2*ratio);
+
+    overlay.style.setProperty('--dock-progress',eased.toFixed(4));
+    overlay.querySelector('.float-label').style.maxWidth=(34*(1-eased)).toFixed(1)+'px';
+    overlay.style.left=(startLeft+(finishLeft-startLeft)*eased).toFixed(1)+'px';
+    overlay.style.top=(startTop+(finishTop-startTop)*eased).toFixed(1)+'px';
+    overlay.classList.toggle('is-merged',ratio>=.99);
+    bottomTotal.classList.toggle('total-docking',ratio>0.005);
+  }
+
+  function sizeCounters(){
+    const pending=bodyGaps.querySelectorAll('.gaprow:not(.compact)');
+    if(!pending.length)return;
+    const compact=[...bodyGaps.querySelectorAll('.gaprow.compact')];
+    const sectionHeading=bodyGaps.querySelector('.counted-heading');
+    const compactHeight=compact.reduce((sum,row)=>sum+row.getBoundingClientRect().height,0);
+    const headingHeight=sectionHeading?sectionHeading.getBoundingClientRect().height:0;
+    const headerHeight=topHeader?topHeader.getBoundingClientRect().height:60;
+    const bottomHeight=bottomTotal.getBoundingClientRect().height;
+    const available=viewportHeight()-headerHeight-bottomHeight-compactHeight-headingHeight-8;
+    const rowHeight=Math.max(60,Math.min(86,Math.floor(available/pending.length)));
+    const controlHeight=Math.max(48,Math.min(66,rowHeight-12));
+    bodyGaps.style.setProperty('--adaptive-row-height',rowHeight+'px');
+    bodyGaps.style.setProperty('--adaptive-control-height',controlHeight+'px');
+  }
+
+  let scheduled=false;
+  function scheduleMove(){
+    if(scheduled)return;
+    scheduled=true;
+    requestAnimationFrame(()=>{
+      scheduled=false;
+      moveTotal();
+    });
+  }
+  function scheduleLayout(){
+    sizeCounters();
+    scheduleMove();
+  }
+  new MutationObserver(scheduleLayout).observe(bodyGaps,{childList:true});
+  window.addEventListener('scroll',scheduleMove,{passive:true});
+  window.addEventListener('resize',scheduleLayout,{passive:true});
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',scheduleLayout,{passive:true});
+    window.visualViewport.addEventListener('scroll',scheduleMove,{passive:true});
+  }
+  scheduleLayout();
+})();
+updateUndoRedo();`,
+      'flying single tally and responsive screen sizing'
+    );
+
+    document.open();
+    document.write(source);
+    document.close();
+  }catch(err){
+    console.error('Availability adaptive test:',err);
+    const node=document.getElementById('loadStatus');
+    node.className='loading error';
+    node.innerHTML='<strong>Test could not open</strong><p id="errMsg"></p><small>Upload this test file beside index.html in your Availability-app GitHub repository. Your live app is unchanged.</small>';
+    document.getElementById('errMsg').textContent=err.message;
+  }
+})();
+</script>
+</body>
+</html>
