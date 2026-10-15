@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Availability · Bold total test 2.2</title>
+<style>
+html,body{margin:0;background:#f3f6f8;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17202b}
+.loading{max-width:430px;margin:36px auto;padding:20px;text-align:center}
+.loading strong{display:block;font-size:23px;margin-bottom:10px}
+.loading small{color:#697581}
+.loading.error{background:#fff;border:1px solid #e2d0d0;border-radius:12px;text-align:left}
+</style>
+</head>
+<body>
+<div class="loading" id="loadStatus"><strong>Availability</strong><small>Opening bold total test…</small></div>
+<script>
+(async function(){
+  try{
+    // Use the current live app as the base, so its scores, saved figures,
+    // image guide, share sheet and all existing shortcuts remain unchanged.
+    // This test file must be uploaded alongside index.html on GitHub Pages.
+    const response=await fetch('./index.html',{cache:'no-store'});
+    if(!response.ok)throw new Error('Could not read the live Availability app ('+response.status+').');
+    let source=await response.text();
+    const replaceOnce=(before,after,label)=>{
+      if(source.split(before).length!==2)throw new Error('The live app changed: '+label+' could not be matched.');
+      source=source.replace(before,after);
+    };
+    if(!source.includes('function makeGapRow(area)') || !source.includes('function renderGaps()'))
+      throw new Error('This test could not find the current gap counter.');
+
+    const adaptiveCss=`
+/* Adaptive counting layout: large pending rows, small completed rows. */
+header h1::after{
+  content:"TEST 2.1";
+  display:inline-block;
+  vertical-align:middle;
+  margin-left:10px;
+  padding:5px 8px;
+  font-size:10px;
+  letter-spacing:.6px;
+  border-radius:6px;
+  background:#ffe3e3;
+  color:#b42323;
+}
+#gaps{display:flex;flex-direction:column}
+#gaps .gaprow:not(.compact){
+  grid-template-columns:minmax(74px,1fr) 52px 66px 52px 78px;
+  min-height:70px;gap:5px;padding:7px 9px;
+}
+#gaps .gaprow:not(.compact) .area{font-size:16px}
+#gaps .gaprow:not(.compact) .counter{width:52px;height:52px;font-size:32px;border-radius:13px}
+#gaps .gaprow:not(.compact) .editwrap{width:66px;height:52px}
+#gaps .gaprow:not(.compact) .gapinput,
+#gaps .gaprow:not(.compact) .additionalinput{height:52px;font-size:23px;border-radius:12px}
+#gaps .gaprow:not(.compact) .editcue{font-size:11px}
+#gaps .gaprow:not(.compact) .donebtn{width:78px;height:52px;border-radius:13px;font-size:11px}
+#gaps .gaprow.compact{
+  grid-template-columns:minmax(0,1fr) 48px 68px;
+  gap:8px;padding:4px 10px;min-height:51px;
+  background:#edf8ef;border-top:1px solid #e0e9e2;
+}
+#gaps .gaprow.compact.bulkdone{background:#f6fbf7}
+#gaps .gaprow.compact.additionalrow{border-top:1px solid #e0e9e2}
+#gaps .compact .area{font-size:14px;line-height:1.15}
+#gaps .compact-name{display:flex;align-items:center;gap:7px}
+#gaps .compact-tick{font-weight:900;color:#16823a}
+#gaps .compact-count{font-size:16px;font-weight:900;text-align:center;color:#176f34;font-variant-numeric:tabular-nums}
+#gaps .compact-edit{
+  width:68px;height:42px;border:1px solid #b9d9c0;border-radius:10px;
+  background:#fff;color:#167b38;font-size:12px;font-weight:900;
+}
+#gaps .counted-heading{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px 5px;font-size:11px;font-weight:850;letter-spacing:.25px;
+  color:#607568;background:#f2f7f3;border-top:2px solid #d9e7dc;
+}
+@media(max-width:390px){
+  #gaps .gaprow:not(.compact){
+    grid-template-columns:minmax(68px,1fr) 48px 60px 48px 70px;
+    padding:7px 7px;gap:4px;min-height:68px;
+  }
+  #gaps .gaprow:not(.compact) .area{font-size:15px}
+  #gaps .gaprow:not(.compact) .counter{width:48px;height:50px;font-size:31px}
+  #gaps .gaprow:not(.compact) .editwrap{width:60px;height:50px}
+  #gaps .gaprow:not(.compact) .gapinput,
+  #gaps .gaprow:not(.compact) .additionalinput{height:50px;font-size:21px}
+  #gaps .gaprow:not(.compact) .donebtn{width:70px;height:50px;font-size:10px}
+}
+@media(max-width:350px){
+  #gaps .gaprow:not(.compact){
+    grid-template-columns:minmax(62px,1fr) 42px 52px 42px 64px;
+    gap:3px;padding:6px 6px;min-height:64px;
+  }
+  #gaps .gaprow:not(.compact) .area{font-size:14px}
+  #gaps .gaprow:not(.compact) .counter{width:42px;height:46px;font-size:29px}
+  #gaps .gaprow:not(.compact) .editwrap{width:52px;height:46px}
+  #gaps .gaprow:not(.compact) .gapinput,
+  #gaps .gaprow:not(.compact) .additionalinput{height:46px;font-size:20px}
+  #gaps .gaprow:not(.compact) .donebtn{width:64px;height:46px;font-size:9px}
+  #gaps .gaprow.compact{grid-template-columns:minmax(0,1fr) 40px 60px;gap:5px;padding-left:7px;padding-right:7px}
+  #gaps .compact-edit{width:60px}
+}
+
+/* v1.9: Fit the counter rows to the visible phone height without
+   reducing tap targets below comfortable sizes. */
+#gaps .gaprow:not(.compact){
+  min-height:var(--adaptive-row-height,70px);
+  height:var(--adaptive-row-height,70px);
+  padding-top:4px;padding-bottom:4px;
+}
+#gaps .gaprow:not(.compact) .counter,
+#gaps .gaprow:not(.compact) .donebtn,
+#gaps .gaprow:not(.compact) .editwrap,
+#gaps .gaprow:not(.compact) .gapinput,
+#gaps .gaprow:not(.compact) .additionalinput{
+  height:var(--adaptive-control-height,52px);
+}
+/* Large, high-contrast tally, integrated in the sticky header. */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;min-width:0;
+  padding-top:calc(8px + env(safe-area-inset-top));
+  padding-bottom:8px;
+}
+.header-brand{
+  display:flex;flex-direction:column;align-items:flex-start;
+  gap:6px;min-width:0;
+}
+header h1{
+  margin:0;white-space:nowrap;
+  font-size:clamp(19px,5.5vw,24px);
+  letter-spacing:-.6px;line-height:1.05;
+}
+header h1::after{display:none!important}
+.test-version{
+  display:inline-flex;flex:none;
+  color:#a92c2c;background:#ffe8e8;border-radius:6px;
+  padding:4px 7px;font-size:9px;
+  font-weight:950;letter-spacing:.4px;
+}
+.header-gap-total{
+  flex:none;display:flex;align-items:center;justify-content:space-between;
+  gap:9px;min-width:151px;height:70px;
+  padding:8px 11px;
+  background:#12243a;border:2px solid #233e59;
+  border-radius:15px;
+  box-shadow:0 3px 9px rgba(11,30,50,.21),inset 0 1px rgba(255,255,255,.12);
+  font-variant-numeric:tabular-nums;
+  opacity:1;transform:translateY(0) scale(1);
+  transition:opacity .23s ease,transform .23s cubic-bezier(.2,.85,.2,1);
+  pointer-events:none;
+}
+.header-gap-total span{
+  flex:none;display:block;font-size:12px;font-weight:950;
+  line-height:1.13;letter-spacing:.7px;color:#f4f8ff;
+}
+.header-gap-total strong{
+  display:block;min-width:40px;text-align:right;
+  font-size:44px;font-weight:950;line-height:1;
+  letter-spacing:-1.7px;color:#ffd34d;
+  font-variant-numeric:tabular-nums;
+}
+.header-gap-total.merged{opacity:0;transform:translateY(8px) scale(.94)}
+.header-gap-total.bump{animation:tally-glow .27s ease-out}
+.header-gap-total.bump strong{animation:tally-pop .26s ease-out}
+@keyframes tally-pop{
+  0%{transform:scale(1)}
+  48%{transform:scale(1.20)}
+  100%{transform:scale(1)}
+}
+@keyframes tally-glow{
+  45%{box-shadow:0 3px 20px rgba(255,190,30,.5),0 0 0 2px #ffd34d}
+}
+.totalbadge.arrived{animation:total-arrived .40s ease-out}
+@keyframes total-arrived{
+  0%{transform:translateY(-5px) scale(.92);opacity:.55}
+  68%{transform:translateY(0) scale(1.09)}
+  100%{transform:translateY(0) scale(1);opacity:1}
+}
+/* Keep the real bottom number visible and easily legible. */
+#storeTotal{font-size:29px;font-weight:950}
+@media(max-width:375px){
+  header{gap:6px}
+  .header-gap-total{min-width:134px;height:64px;padding:7px 9px;gap:5px}
+  .header-gap-total span{font-size:10px;letter-spacing:.5px}
+  .header-gap-total strong{font-size:40px;min-width:34px}
+  .header-brand{gap:5px}
+  .test-version{font-size:8px;padding:3px 5px}
+}
+@media(max-width:335px){
+  header h1{font-size:18px}
+  .header-gap-total{min-width:120px;height:60px}
+  .header-gap-total strong{font-size:35px;min-width:28px}
+}
+@media(prefers-reduced-motion:reduce){
+  .header-gap-total{transition:none}
+  .header-gap-total.bump,.header-gap-total.bump strong,.totalbadge.arrived{animation:none}
+}
+`;
+    replaceOnce('</style>',adaptiveCss+'\n</style>','styles');
+
+    replaceOnce(
+      '  row.dataset.area=area;\n  row.innerHTML=`',
+      `  row.dataset.area=area;
+  // Finished rows become compact and are placed after unfinished rows.
+  if(state.done[area]){
+    row.className='gaprow compact'+(bulkDone?' bulkdone':'');
+    row.innerHTML=\`
+      <div class="area compact-name"><span class="compact-tick" aria-hidden="true">✓</span>\${LABELS[area]}</div>
+      <span class="compact-count" aria-label="\${LABELS[area]} gaps">\${Number(state.gaps[area])||0}</span>
+      <button type="button" class="compact-edit" aria-label="Edit \${LABELS[area]} count">Edit</button>\`;
+    row.querySelector('.compact-edit').onclick=()=>{
+      closeCustomKeypad(false);
+      lockedTapCounts[area]=0;
+      remember();
+      state.done[area]=false;
+      save();
+      renderGaps();
+      requestAnimationFrame(()=>{
+        const reopened=[...document.querySelectorAll('#gaps .gaprow[data-area]')].find(el=>el.dataset.area===area);
+        if(reopened)reopened.scrollIntoView({behavior:'smooth',block:'center'});
+      });
+    };
+    return row;
+  }
+  row.innerHTML=\``,
+      'area rendering'
+    );
+
+    replaceOnce(
+      "  AREAS.forEach(a=>box.appendChild(makeGapRow(a)));\n\n  const extra=document.createElement('div');",
+      `  const pendingAreas=AREAS.filter(a=>!state.done[a]);
+  const finishedAreas=AREAS.filter(a=>state.done[a]);
+  pendingAreas.forEach(a=>box.appendChild(makeGapRow(a)));
+
+  const extra=document.createElement('div');`,
+      'section sorting'
+    );
+
+    replaceOnce(
+      "  const extraBulkDone=!!(state.bulkCompleteOriginalDone&&state.additionalDone&&!state.bulkCompleteOriginalDone.additionalDone);\n  extra.className='gaprow additionalrow'",
+      `  const extraBulkDone=!!(state.bulkCompleteOriginalDone&&state.additionalDone&&!state.bulkCompleteOriginalDone.additionalDone);
+  if(state.additionalDone){
+    extra.className='gaprow compact additionalrow'+(extraBulkDone?' bulkdone':'');
+    extra.innerHTML=\`
+      <div class="area compact-name"><span class="compact-tick" aria-hidden="true">✓</span>Additional Counts</div>
+      <span class="compact-count" aria-label="Additional count">\${Number(state.additional)||0}</span>
+      <button type="button" class="compact-edit" aria-label="Edit additional counts">Edit</button>\`;
+    extra.querySelector('.compact-edit').onclick=()=>{
+      closeCustomKeypad(false);
+      remember();
+      state.additionalDone=false;
+      save();
+      renderGaps();
+      requestAnimationFrame(()=>{
+        const reopened=document.querySelector('#gaps .additionalrow');
+        if(reopened)reopened.scrollIntoView({behavior:'smooth',block:'center'});
+      });
+    };
+  }else{
+  extra.className='gaprow additionalrow'`,
+      'additional count rendering'
+    );
+
+    replaceOnce(
+      "  extraDone.onclick=()=>{closeCustomKeypad(false);remember();state.additionalDone=!state.additionalDone;save();renderGaps()};\n  box.appendChild(extra);\n\n  document.getElementById('storeTotal')",
+      `  extraDone.onclick=()=>{closeCustomKeypad(false);remember();state.additionalDone=!state.additionalDone;save();renderGaps()};
+  }
+  if(!state.additionalDone)box.appendChild(extra);
+  const countedNumber=finishedAreas.length+(state.additionalDone?1:0);
+  if(countedNumber){
+    const heading=document.createElement('div');
+    heading.className='counted-heading';
+    heading.innerHTML='<span>✓ Counted sections</span><span>'+countedNumber+'/10</span>';
+    box.appendChild(heading);
+    finishedAreas.forEach(a=>box.appendChild(makeGapRow(a)));
+    if(state.additionalDone)box.appendChild(extra);
+  }
+
+  document.getElementById('storeTotal')`,
+      'completed grouping'
+    );
+
+    replaceOnce(
+      '<header><h1>Availability</h1></header>',
+      '<header><div class="header-brand"><h1>Availability</h1><span class="test-version">TEST 2.2</span></div><div class="header-gap-total" id="headerGapTotal" role="status" aria-label="Total gaps"><span>TOTAL<br>GAPS</span><strong id="headerGapNumber">0</strong></div></header>',
+      'bold sticky header total'
+    );
+
+    source=source.replace("const APP_VERSION='1.6';","const APP_VERSION='2.2-test';");
+    replaceOnce(
+      'syncScoreUI();\nsyncReasonUI();\nrenderGaps();\nupdateUndoRedo();',
+      `syncScoreUI();
+syncReasonUI();
+renderGaps();
+(function setupAdaptiveCounting(){
+  const bodyGaps=document.getElementById('gaps');
+  const bottomTotal=document.querySelector('.total');
+  const totalBadge=document.querySelector('.totalbadge');
+  const originalTotal=document.getElementById('storeTotal');
+  const headerChip=document.getElementById('headerGapTotal');
+  const headerNumber=document.getElementById('headerGapNumber');
+  const topHeader=document.querySelector('header');
+  if(!bodyGaps||!bottomTotal||!totalBadge||!originalTotal||!headerChip||!headerNumber||!topHeader)return;
+
+  // Read the actual TOTAL: same figure used by publishing, never an independent tally.
+  let lastValue=null;
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function syncTally(){
+    const value=originalTotal.textContent.trim()||'0';
+    headerNumber.textContent=value;
+    if(lastValue!==null&&lastValue!==value&&!reducedMotion&&!headerChip.classList.contains('merged')){
+      headerChip.classList.remove('bump');
+      void headerChip.offsetWidth;
+      headerChip.classList.add('bump');
+    }
+    lastValue=value;
+  }
+  new MutationObserver(syncTally).observe(originalTotal,{childList:true,subtree:true,characterData:true});
+  headerChip.addEventListener('animationend',()=>headerChip.classList.remove('bump'));
+  totalBadge.addEventListener('animationend',()=>totalBadge.classList.remove('arrived'));
+  syncTally();
+
+  let wasShowingBottom=false;
+  function updateHandoff(){
+    const valueBounds=originalTotal.getBoundingClientRect();
+    const headerBottom=topHeader.getBoundingClientRect().bottom;
+    const viewportBottom=window.visualViewport?window.visualViewport.height:window.innerHeight;
+    // Hand over only while the real TOTAL number is actually visible.
+    const showingBottom=valueBounds.top<viewportBottom-Math.min(22,valueBounds.height*.8)&&valueBounds.bottom>headerBottom+10;
+    headerChip.classList.toggle('merged',showingBottom);
+    if(showingBottom&&!wasShowingBottom&&!reducedMotion){
+      totalBadge.classList.remove('arrived');
+      void totalBadge.offsetWidth;
+      totalBadge.classList.add('arrived');
+    }
+    wasShowingBottom=showingBottom;
+  }
+
+  function viewportHeight(){return window.visualViewport?window.visualViewport.height:window.innerHeight;}
+  function sizeCounters(){
+    const pending=bodyGaps.querySelectorAll('.gaprow:not(.compact)');
+    if(!pending.length)return;
+    const compact=[...bodyGaps.querySelectorAll('.gaprow.compact')];
+    const sectionHeading=bodyGaps.querySelector('.counted-heading');
+    const compactHeight=compact.reduce((sum,row)=>sum+row.getBoundingClientRect().height,0);
+    const headingHeight=sectionHeading?sectionHeading.getBoundingClientRect().height:0;
+    const headerHeight=topHeader.getBoundingClientRect().height;
+    const bottomHeight=bottomTotal.getBoundingClientRect().height;
+    const available=viewportHeight()-headerHeight-bottomHeight-compactHeight-headingHeight-8;
+    const rowHeight=Math.max(60,Math.min(86,Math.floor(available/pending.length)));
+    const controlHeight=Math.max(48,Math.min(66,rowHeight-12));
+    bodyGaps.style.setProperty('--adaptive-row-height',rowHeight+'px');
+    bodyGaps.style.setProperty('--adaptive-control-height',controlHeight+'px');
+  }
+
+  let scheduled=false;
+  function scheduleHandoff(){
+    if(scheduled)return;
+    scheduled=true;
+    requestAnimationFrame(()=>{scheduled=false;updateHandoff()});
+  }
+  function scheduleLayout(){sizeCounters();scheduleHandoff()}
+  new MutationObserver(scheduleLayout).observe(bodyGaps,{childList:true});
+  window.addEventListener('scroll',scheduleHandoff,{passive:true});
+  window.addEventListener('resize',scheduleLayout,{passive:true});
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',scheduleLayout,{passive:true});
+    window.visualViewport.addEventListener('scroll',scheduleHandoff,{passive:true});
+  }
+  scheduleLayout();
+})();
+updateUndoRedo();`,
+      'bold tally, bottom handoff and screen sizing'
+    );
+
+    document.open();
+    document.write(source);
+    document.close();
+  }catch(err){
+    console.error('Availability adaptive test:',err);
+    const node=document.getElementById('loadStatus');
+    node.className='loading error';
+    node.innerHTML='<strong>Test could not open</strong><p id="errMsg"></p><small>Upload this test file beside index.html in your Availability-app GitHub repository. Your live app is unchanged.</small>';
+    document.getElementById('errMsg').textContent=err.message;
+  }
+})();
+</script>
+</body>
+</html>
