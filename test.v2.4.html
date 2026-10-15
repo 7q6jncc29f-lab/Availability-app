@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f3f6f8"><title>Availability — Performance Test V2.4</title>
+<style>
+html,body{margin:0;background:#f3f6f8;color:#17202b;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.loading{max-width:440px;margin:38px auto;padding:22px 16px;text-align:center}
+.loading strong{font-size:22px;display:block;margin-bottom:8px}.loading small{color:#697581}
+.loading.error{border:1px solid #e4c4c4;border-radius:12px;background:#fff;text-align:left}
+</style></head><body>
+<div class="loading" id="loadStatus"><strong>Availability</strong><small>Starting performance test…</small></div>
+<script>
+(async function(){
+const adaptiveCss=String.raw`
+/* Adaptive counting layout: large pending rows, small completed rows. */
+header h1::after{
+  content:"TEST 2.4";
+  display:inline-block;
+  vertical-align:middle;
+  margin-left:10px;
+  padding:5px 8px;
+  font-size:10px;
+  letter-spacing:.6px;
+  border-radius:6px;
+  background:#ffe3e3;
+  color:#b42323;
+}
+#gaps{display:flex;flex-direction:column}
+#gaps .gaprow:not(.compact){
+  grid-template-columns:minmax(74px,1fr) 52px 66px 52px 78px;
+  min-height:70px;gap:5px;padding:7px 9px;
+}
+#gaps .gaprow:not(.compact) .area{font-size:16px}
+#gaps .gaprow:not(.compact) .counter{width:52px;height:52px;font-size:32px;border-radius:13px}
+#gaps .gaprow:not(.compact) .editwrap{width:66px;height:52px}
+#gaps .gaprow:not(.compact) .gapinput,
+#gaps .gaprow:not(.compact) .additionalinput{height:52px;font-size:23px;border-radius:12px}
+#gaps .gaprow:not(.compact) .editcue{font-size:11px}
+#gaps .gaprow:not(.compact) .donebtn{width:78px;height:52px;border-radius:13px;font-size:11px}
+#gaps .gaprow.compact{
+  grid-template-columns:minmax(0,1fr) 48px 68px;
+  gap:8px;padding:4px 10px;min-height:51px;
+  background:#edf8ef;border-top:1px solid #e0e9e2;
+}
+#gaps .gaprow.compact.bulkdone{background:#f6fbf7}
+#gaps .gaprow.compact.additionalrow{border-top:1px solid #e0e9e2}
+#gaps .compact .area{font-size:14px;line-height:1.15}
+#gaps .compact-name{display:flex;align-items:center;gap:7px}
+#gaps .compact-tick{font-weight:900;color:#16823a}
+#gaps .compact-count{font-size:16px;font-weight:900;text-align:center;color:#176f34;font-variant-numeric:tabular-nums}
+#gaps .compact-edit{
+  width:68px;height:42px;border:1px solid #b9d9c0;border-radius:10px;
+  background:#fff;color:#167b38;font-size:12px;font-weight:900;
+}
+#gaps .counted-heading{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px 5px;font-size:11px;font-weight:850;letter-spacing:.25px;
+  color:#607568;background:#f2f7f3;border-top:2px solid #d9e7dc;
+}
+@media(max-width:390px){
+  #gaps .gaprow:not(.compact){
+    grid-template-columns:minmax(68px,1fr) 48px 60px 48px 70px;
+    padding:7px 7px;gap:4px;min-height:68px;
+  }
+  #gaps .gaprow:not(.compact) .area{font-size:15px}
+  #gaps .gaprow:not(.compact) .counter{width:48px;height:50px;font-size:31px}
+  #gaps .gaprow:not(.compact) .editwrap{width:60px;height:50px}
+  #gaps .gaprow:not(.compact) .gapinput,
+  #gaps .gaprow:not(.compact) .additionalinput{height:50px;font-size:21px}
+  #gaps .gaprow:not(.compact) .donebtn{width:70px;height:50px;font-size:10px}
+}
+@media(max-width:350px){
+  #gaps .gaprow:not(.compact){
+    grid-template-columns:minmax(62px,1fr) 42px 52px 42px 64px;
+    gap:3px;padding:6px 6px;min-height:64px;
+  }
+  #gaps .gaprow:not(.compact) .area{font-size:14px}
+  #gaps .gaprow:not(.compact) .counter{width:42px;height:46px;font-size:29px}
+  #gaps .gaprow:not(.compact) .editwrap{width:52px;height:46px}
+  #gaps .gaprow:not(.compact) .gapinput,
+  #gaps .gaprow:not(.compact) .additionalinput{height:46px;font-size:20px}
+  #gaps .gaprow:not(.compact) .donebtn{width:64px;height:46px;font-size:9px}
+  #gaps .gaprow.compact{grid-template-columns:minmax(0,1fr) 40px 60px;gap:5px;padding-left:7px;padding-right:7px}
+  #gaps .compact-edit{width:60px}
+}
+
+/* Fit unfinished counting rows to the available viewport. */
+#gaps .gaprow:not(.compact){
+  padding-top:4px;padding-bottom:4px;
+}
+#gaps .gaprow:not(.compact) .counter,
+#gaps .gaprow:not(.compact) .donebtn,
+#gaps .gaprow:not(.compact) .editwrap,
+#gaps .gaprow:not(.compact) .gapinput,
+#gaps .gaprow:not(.compact) .additionalinput{
+  height:var(--adaptive-control-height,52px);
+}
+
+/* Total gaps appear only at the bottom of the page. */
+#gaps .gaprow{font-variant-numeric:tabular-nums;contain:layout style}
+#gaps .gaprow:not(.compact){
+  min-height:var(--adaptive-row-height,70px);
+  height:var(--adaptive-row-height,70px);
+}
+#gaps .gaprow.compact > .counter,
+#gaps .gaprow.compact > .editwrap,
+#gaps .gaprow.compact > .donebtn{display:none}
+#gaps .gaprow:not(.compact) > .compact-count,
+#gaps .gaprow:not(.compact) > .compact-edit{display:none}
+#gaps .compact .area{white-space:normal}
+#gaps .counted-heading{flex:none}
+@media(prefers-reduced-motion:reduce){
+  #gaps .gaprow{transition:none}
+}
+`;
+const smartRenderer=String.raw`// Single persistent DOM tree: rows keep their event handlers and keypad bindings.
+const perfRows=new Map();
+const perfRefs=new Map();
+let perfExtra=null,perfHeading=null,perfExtraRefs=null,perfReady=false;
+let layoutScheduled=false,lastStructure='',lastViewportSize=-1,lastViewportStructure='';
+let totalDisplay=null,countingBox=null,headerDisplay=null,footerDisplay=null;
+function putText(element,value){
+  if(element&&element.textContent!==String(value))element.textContent=String(value);
+}
+function putValue(element,value){
+  if(element&&element.value!==String(value))element.value=String(value);
+}
+function updateCounterView(area,skipTotal=false){
+  const refs=perfRefs.get(area);
+  if(refs){
+    const count=Number(state.gaps[area])||0;
+    const shown=state.done[area]?String(count):(count?String(count):'');
+    putValue(refs.input,shown);
+    if(refs.wrap)refs.wrap.classList.toggle('hasvalue',!!state.done[area]||!!count);
+    putText(refs.number,count);
+  }
+  if(!skipTotal)putText(totalDisplay,total());
+  if(applyAutomaticScoreReason())syncReasonUI();
+}
+function fitCountingRows(force=false){
+  if(layoutScheduled)return;
+  layoutScheduled=true;
+  requestAnimationFrame(()=>{
+    layoutScheduled=false;
+    if(!countingBox)return;
+    const viewport=Math.round(window.visualViewport?.height||window.innerHeight);
+    const structure=lastStructure;
+    // iOS browser toolbar can report successive subpixel changes during scrolling.
+    if(!force&&Math.abs(viewport-lastViewportSize)<3&&structure===lastViewportStructure)return;
+    const pending=[];
+    for(const area of AREAS)if(!state.done[area])pending.push(perfRows.get(area));
+    if(!state.additionalDone)pending.push(perfExtra);
+    if(!pending.length)return;
+    // All measurements before style writes: avoid forced alternating reflows.
+    const topHeight=headerDisplay?.offsetHeight||0;
+    const bottomHeight=footerDisplay?.offsetHeight||0;
+    let compactHeight=0;
+    for(const area of AREAS)if(state.done[area])compactHeight+=perfRows.get(area).offsetHeight;
+    if(state.additionalDone)compactHeight+=perfExtra.offsetHeight;
+    if(perfHeading?.isConnected)compactHeight+=perfHeading.offsetHeight;
+    const nextHeight=Math.max(60,Math.min(84,Math.floor((viewport-topHeight-bottomHeight-compactHeight-8)/pending.length)));
+    const nextControl=Math.max(46,Math.min(64,nextHeight-12));
+    const heightString=nextHeight+'px', controlString=nextControl+'px';
+    if(countingBox.style.getPropertyValue('--adaptive-row-height')!==heightString)
+      countingBox.style.setProperty('--adaptive-row-height',heightString);
+    if(countingBox.style.getPropertyValue('--adaptive-control-height')!==controlString)
+      countingBox.style.setProperty('--adaptive-control-height',controlString);
+    lastViewportSize=viewport;lastViewportStructure=structure;
+  });
+}
+function setupPerfRow(area){
+  const row=perfRows.get(area);
+  const number=document.createElement('span');
+  number.className='compact-count';
+  number.setAttribute('aria-label',LABELS[area]+' gaps');
+  const edit=document.createElement('button');
+  edit.type='button';edit.className='compact-edit';edit.textContent='Edit';
+  edit.setAttribute('aria-label','Edit '+LABELS[area]+' count');
+  edit.onclick=()=>{
+    closeCustomKeypad(false);remember();state.done[area]=false;
+    save();renderGaps();
+    requestAnimationFrame(()=>row.scrollIntoView({behavior:'smooth',block:'center'}));
+  };
+  row.append(number,edit);
+  const wrap=row.querySelector('.editwrap');
+  let cue=row.querySelector('.editcue');
+  if(!cue){cue=document.createElement('span');cue.className='editcue';cue.textContent='EDIT';wrap?.append(cue)}
+  perfRefs.set(area,{row,number,edit,input:row.querySelector('.gapinput'),wrap,done:row.querySelector('.donebtn')});
+}
+function renderGaps(){
+  if(!perfReady){
+    legacyRenderGaps(); // One initial setup uses existing app handlers.
+    countingBox=document.getElementById('gaps');
+    totalDisplay=document.getElementById('storeTotal');
+    headerDisplay=document.querySelector('header');
+    footerDisplay=document.querySelector('.total');
+    AREAS.forEach(area=>perfRows.set(area,countingBox.querySelector('.gaprow[data-area="'+area+'"]')));
+    perfExtra=countingBox.querySelector('.additionalrow');
+    perfHeading=document.createElement('div');perfHeading.className='counted-heading';
+    AREAS.forEach(setupPerfRow);
+    const number=document.createElement('span');number.className='compact-count';
+    const edit=document.createElement('button');edit.type='button';edit.className='compact-edit';
+    edit.textContent='Edit';edit.setAttribute('aria-label','Edit additional counts');
+    edit.onclick=()=>{
+      closeCustomKeypad(false);remember();state.additionalDone=false;save();renderGaps();
+      requestAnimationFrame(()=>perfExtra.scrollIntoView({behavior:'smooth',block:'center'}));
+    };
+    perfExtra.append(number,edit);
+    perfExtraRefs={number,edit,input:perfExtra.querySelector('.additionalinput'),wrap:perfExtra.querySelector('.editwrap'),done:perfExtra.querySelector('.donebtn'),name:perfExtra.querySelector('.area')};
+    perfReady=true;
+  }
+  const pending=[],finished=[];
+  AREAS.forEach(area=>{
+    const ref=perfRefs.get(area),row=ref.row;
+    const completed=!!state.done[area];
+    const bulk=!!(state.bulkCompleteOriginalDone&&completed&&state.bulkCompleteOriginalDone.done&&!state.bulkCompleteOriginalDone.done[area]);
+    row.classList.toggle('done',completed);
+    row.classList.toggle('compact',completed);
+    row.classList.toggle('bulkdone',bulk);
+    if(ref.input.disabled!==completed)ref.input.disabled=completed;
+    putText(ref.done,completed?'✓ Counted':'Not counted');
+    updateCounterView(area,true);
+    (completed?finished:pending).push(row);
+  });
+  const completed=!!state.additionalDone;
+  const extraBulk=!!(state.bulkCompleteOriginalDone&&completed&&!state.bulkCompleteOriginalDone.additionalDone);
+  perfExtra.classList.toggle('done',completed);
+  perfExtra.classList.toggle('compact',completed);
+  perfExtra.classList.toggle('bulkdone',extraBulk);
+  if(perfExtraRefs.input.disabled!==completed)perfExtraRefs.input.disabled=completed;
+  const extraCount=Number(state.additional)||0;
+  putValue(perfExtraRefs.input,completed?extraCount:(extraCount?String(extraCount):''));
+  perfExtraRefs.wrap.classList.toggle('hasvalue',completed||!!extraCount);
+  putText(perfExtraRefs.number,extraCount);
+  putText(perfExtraRefs.done,completed?'✓ Done':'Not done');
+  const extraName=completed?'Additional Counts':'Additional<br>Counts';
+  if(perfExtraRefs.name.innerHTML!==extraName)perfExtraRefs.name.innerHTML=extraName;
+  const counted=finished.length+(completed?1:0);
+  const heading='<span>✓ Counted sections</span><span>'+counted+'/10</span>';
+  if(perfHeading.innerHTML!==heading)perfHeading.innerHTML=heading;
+  const order=[...pending];
+  if(!completed)order.push(perfExtra);
+  if(counted){order.push(perfHeading,...finished);if(completed)order.push(perfExtra)}
+  for(let i=0;i<order.length;i++){
+    if(countingBox.children[i]!==order[i])countingBox.insertBefore(order[i],countingBox.children[i]||null);
+  }
+  for(const item of [...countingBox.children])if(!order.includes(item))item.remove();
+  putText(totalDisplay,total());
+  if(applyAutomaticScoreReason())save();
+  syncReasonUI();updateCompleteAll();updatePublish();
+  const structure=AREAS.map(a=>state.done[a]?'1':'0').join('')+(completed?'1':'0');
+  if(structure!==lastStructure){lastStructure=structure;fitCountingRows(true)}
+}
+window.addEventListener('resize',()=>fitCountingRows(),{passive:true});
+window.visualViewport?.addEventListener('resize',()=>fitCountingRows(),{passive:true});
+`;
+function compileAvailability(source){
+  const replaceOnce=(before,after,label)=>{
+    if(source.split(before).length!==2)throw new Error('The live app has changed ('+label+').');
+    source=source.replace(before,after);
+  };
+  if(!source.includes('function makeGapRow(area)')||!source.includes('function renderGaps()'))
+    throw new Error('Original counting engine was not found');
+  const guideMatch=source.match(/src="data:image\/png;base64,([^"]+)"/);
+  if(!guideMatch)throw new Error('Original score guide was not found');
+  source=source.replace(guideMatch[0],'src="" data-guide-lazy="1"');
+  replaceOnce('</style>',adaptiveCss+'\n</style>','styling');
+  replaceOnce("const APP_VERSION='1.6';","const APP_VERSION='2.4-performance-test';",'version');
+  replaceOnce("const KEY='availability-app-v2';",`const KEY='availability-app-v2.4-performance-test';
+try{
+  if(!localStorage.getItem(KEY)){
+    const previous=localStorage.getItem('availability-app-v2.3-performance-test')||localStorage.getItem('availability-app-v2');
+    if(previous)localStorage.setItem(KEY,previous);
+  }
+}catch(e){}`, 'isolated test storage');
+  replaceOnce(
+    'function save(){stamp();localStorage.setItem(KEY,JSON.stringify(state))}',
+    `let persistTimer=0;
+function flushSavedState(){
+  if(persistTimer){clearTimeout(persistTimer);persistTimer=0}
+  try{localStorage.setItem(KEY,JSON.stringify(state))}
+  catch(e){
+    const el=document.getElementById('status');
+    if(el)el.textContent='Unable to save on this device. Check browser storage.';
+    console.warn('Availability save failed',e);
+  }
+}
+function save(){stamp();if(persistTimer)clearTimeout(persistTimer);persistTimer=setTimeout(flushSavedState,75)}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushSavedState()});
+window.addEventListener('pagehide',flushSavedState);`,'batched persistence');
+  const rowStart=source.indexOf('function makeGapRow(area){');
+  const rowEnd=source.indexOf('function renderGaps(){',rowStart);
+  if(rowStart<0||rowEnd<rowStart)throw new Error('Counting rows changed');
+  let rowSource=source.slice(rowStart,rowEnd);
+  const call='save();\n      renderGaps();';
+  if(rowSource.split(call).length!==3)throw new Error('Tap handlers changed');
+  rowSource=rowSource.split(call).join('save();\n      updateCounterView(area);');
+  const held='onHoldEnd:()=>{save();renderGaps()}';
+  if(rowSource.split(held).length!==3)throw new Error('Hold handlers changed');
+  rowSource=rowSource.split(held).join('onHoldEnd:()=>{save();updateCounterView(area)}');
+  source=source.slice(0,rowStart)+rowSource+source.slice(rowEnd);
+  replaceOnce("button.addEventListener('pointercancel',stopHold);",
+    "button.addEventListener('pointercancel',stopHold);\n  button.addEventListener('lostpointercapture',stopHold);",'touch cancel');
+  // Reduce keypad navigation delay, retaining original scroll boundaries.
+  const scrollStart=source.indexOf('function scrollManualFieldIntoView(el){');
+  const scrollEnd=source.indexOf('function openCustomKeypad(',scrollStart);
+  if(scrollStart<0||scrollEnd<scrollStart)throw new Error('Keypad navigation changed');
+  let scrollCode=source.slice(scrollStart,scrollEnd);
+  if(!scrollCode.includes('  },35);'))throw new Error('Keypad timing changed');
+  scrollCode=scrollCode.replace('  },35);','  },16);');
+  source=source.slice(0,scrollStart)+scrollCode+source.slice(scrollEnd);
+  replaceOnce('function renderGaps(){','function legacyRenderGaps(){','initial row generation');
+  replaceOnce('async function openScoreGuide(){',
+    `async function openScoreGuide(){
+  await window.__availabilityLoadGuide?.();`,'score guide lazy load');
+  replaceOnce('syncScoreUI();\nsyncReasonUI();\nrenderGaps();\nupdateUndoRedo();',
+    smartRenderer+'\nsyncScoreUI();\nsyncReasonUI();\nrenderGaps();\nupdateUndoRedo();','optimised rendering');
+  return source;
+}
+
+  const CACHE_NAME='availability-v24-bundle-v1';
+  const BUNDLE='__v24_compiled.html',ORIGINAL='__v24_original.html',DIGEST='__v24_integrity.txt';
+  const buildKey=name=>new URL('./'+name,location.href).href;
+  let cache=null;
+  const structurallyValidCompiled=html=>typeof html==='string'&&html.length>9000&&
+    html.includes("const APP_VERSION='2.4-performance-test'")&&
+    html.includes("const KEY='availability-app-v2.4-performance-test'")&&
+    html.includes('function renderGaps(){')&&html.includes('</html>');
+  const structurallyValidOriginal=html=>typeof html==='string'&&
+    html.includes('function makeGapRow(area)')&&
+    html.includes("const APP_VERSION='1.6'")&&
+    html.includes('src="data:image/png;base64,');
+  async function sha256(str){
+    if(!crypto?.subtle)return '';
+    const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(hash),c=>c.toString(16).padStart(2,'0')).join('');
+  }
+  async function readCached(name){
+    if(!cache)return null;
+    try{const res=await cache.match(buildKey(name));return res?await res.text():null}catch(e){return null}
+  }
+  async function verifiedCompiled(){
+    const html=await readCached(BUNDLE);
+    if(!structurallyValidCompiled(html))return null;
+    const recorded=await readCached(DIGEST);
+    if(!recorded)return null; // Partial/interrupted cache writes require reconstruction.
+    try{if((await sha256(html))!==recorded)return null}catch(e){return null}
+    return html;
+  }
+  function storeText(name,value,type='text/plain'){
+    if(!cache)return Promise.resolve();
+    return cache.put(buildKey(name),new Response(value,{headers:{'Content-Type':type}}));
+  }
+  try{
+    if('caches' in window){try{cache=await caches.open(CACHE_NAME)}catch(e){cache=null}}
+    // On later launches the fully compiled ~45 KB application is loaded directly.
+    let compiled=await verifiedCompiled();
+    if(!compiled){
+      let original=await readCached(ORIGINAL);
+      if(!structurallyValidOriginal(original)){
+        // Fetch only if the original has not already been cached locally.
+        const response=await fetch('./index.html',{cache:'no-cache'});
+        if(!response.ok)throw new Error('Unable to download the original app ('+response.status+').');
+        original=await response.text();
+      }
+      if(!structurallyValidOriginal(original))throw new Error('Original app is incomplete or has changed.');
+      compiled=compileAvailability(original);
+      if(!structurallyValidCompiled(compiled))throw new Error('The compiled app failed validation.');
+      if(cache){
+        try{
+          // Keep the image-bearing original available for offline guide viewing.
+          await storeText(ORIGINAL,original,'text/html; charset=utf-8');
+          await storeText(BUNDLE,compiled,'text/html; charset=utf-8');
+          await storeText(DIGEST,await sha256(compiled));
+        }catch(err){console.warn('Availability test cache could not be saved',err)}
+      }
+    }
+    // The score-guide image remains encoded and untouched until actually opened.
+    window.__availabilityLoadGuide=async()=>{
+      const image=document.querySelector('.scoreguideimg');
+      if(!image||image.dataset.guideReady==='1')return;
+      let original=await readCached(ORIGINAL);
+      if(!structurallyValidOriginal(original)){
+        const response=await fetch('./index.html',{cache:'force-cache'});
+        if(!response.ok)throw new Error('Score guide unavailable offline until cached.');
+        original=await response.text();
+      }
+      const match=original.match(/src="data:image\/png;base64,([^"]+)"/);
+      if(!match)throw new Error('Score guide unavailable.');
+      image.src='data:image/png;base64,'+match[1];
+      image.dataset.guideReady='1';
+    };
+    if('serviceWorker' in navigator&&location.protocol==='https:'){
+      navigator.serviceWorker.register('./availability-sw-v24.js',{scope:'./'}).catch(err=>console.warn('Offline helper',err));
+    }
+    document.open();document.write(compiled);document.close();
+  }catch(err){
+    console.error('Availability V2.4',err);
+    const node=document.getElementById('loadStatus');
+    if(node){node.className='loading error';
+      node.innerHTML='<strong>Test could not open</strong><p id="errMessage"></p><small>The live app has not been changed.</small>';
+      document.getElementById('errMessage').textContent=err.message;}
+  }
+})();
+</script></body></html>
